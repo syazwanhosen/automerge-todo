@@ -6,14 +6,10 @@ interface SyncControlsProps {
   docUrl: AutomergeUrl;
 }
 
-export const SyncControls: React.FC<SyncControlsProps> = ({ docUrl }) => {
+export const SyncControls: React.FC<SyncControlsProps> = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [error, setError] = useState("");
-
-  const handleExport = () => {
-    navigator.clipboard.writeText(docUrl);
-  };
 
   const handleImport = () => {
     if (!isValidAutomergeUrl(importUrl)) {
@@ -33,11 +29,6 @@ export const SyncControls: React.FC<SyncControlsProps> = ({ docUrl }) => {
 
   return (
     <div className="sync-controls">
-      {/* <button onClick={handleExport}>Copy account token</button>
-      <button onClick={() => setShowImportDialog(true)}>
-        Import account token
-      </button> */}
-
       {showImportDialog && (
         <dialog open>
           <article>
