@@ -44,9 +44,9 @@ function App({ docUrl }: { docUrl: AutomergeUrl }) {
 
       <footer>
         <SyncControls docUrl={docUrl} />
-        <p className="footer-copy">
+        {/* <p className="footer-copy">
           Powered by Automerge + Vite + React + TypeScript
-        </p>
+        </p> */}
       </footer>
     </>
   );
