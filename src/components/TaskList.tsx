@@ -1,19 +1,7 @@
 import "@picocss/pico/css/pico.min.css";
 import "../index.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AutomergeUrl, useDocument } from "@automerge/react";
-
-// Hardcoded username for demo; replace with real user system
-const currentUser = "Syazwan";
-
-export interface Task {
-  title: string;
-  done: boolean;
-  createdBy?: string;
-  createdAt?: string;
-  updatedBy?: string;
-  updatedAt?: string;
-}
 
 export interface ChangeLog {
   action: "add" | "edit" | "delete";
@@ -22,16 +10,14 @@ export interface ChangeLog {
   username: string;
 }
 
-export interface TaskList {
-  title: string;
-  tasks: Task[];
+export interface TextData {
+  content: string;
   changes?: ChangeLog[];
 }
 
-export function initTaskList(): TaskList {
+export function initTextData(): TextData {
   return {
-    title: `TODO: ${new Date().toLocaleString()}`,
-    tasks: [],
+    content: "",
     changes: [],
   };
 }
@@ -39,11 +25,28 @@ export function initTaskList(): TaskList {
 export const TaskList: React.FC<{
   docUrl: AutomergeUrl;
 }> = ({ docUrl }) => {
-  const [doc, changeDoc] = useDocument<TaskList>(docUrl, {
+  const [doc, changeDoc] = useDocument<TextData>(docUrl, {
     suspense: true,
   });
 
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [currentUser, setCurrentUser] = useState("User");
+
+  // Assign a random user ID per tab
+  useEffect(() => {
+    let user = sessionStorage.getItem("currentUser");
+    if (!user) {
+      user = "User_" + Math.random().toString(36).substring(2, 8);
+      sessionStorage.setItem("currentUser", user);
+    }
+    setCurrentUser(user);
+  }, []);
+
+  useEffect(() => {
+    if (doc?.content !== undefined) {
+      setInputText(doc.content);
+    }
+  }, [doc?.content]);
 
   const formatDate = (iso: string) => {
     const date = new Date(iso);
@@ -56,131 +59,80 @@ export const TaskList: React.FC<{
     });
   };
 
-  const handleAddTask = () => {
+  const handleSave = () => {
+    const trimmed = inputText.trim();
     const timestamp = new Date().toISOString();
-    const titleToAdd = newTaskTitle.trim() || "(empty)";
+
     changeDoc((d) => {
-      d.tasks.unshift({
-        title: titleToAdd,
-        done: false,
-        createdBy: currentUser,
-        createdAt: timestamp,
-      });
       d.changes ??= [];
-      d.changes.push({
-        action: "add",
-        title: titleToAdd,
-        timestamp,
-        username: currentUser,
-      });
-    });
-    setNewTaskTitle("");
-  };
 
-  const handleSaveEdit = (index: number) => {
-    const task = doc?.tasks[index];
-    if (!task) return;
-
-    const timestamp = new Date().toISOString();
-    changeDoc((d) => {
-      d.tasks[index].updatedAt = timestamp;
-      d.tasks[index].updatedBy = currentUser;
-
-      d.changes ??= [];
-      d.changes.push({
-        action: "edit",
-        title: task.title,
-        timestamp,
-        username: currentUser,
-      });
-    });
-  };
-
-  const handleDeleteTask = (index: number) => {
-    const task = doc?.tasks[index];
-    if (!task) return;
-
-    const timestamp = new Date().toISOString();
-    changeDoc((d) => {
-      d.tasks.splice(index, 1);
-      d.changes ??= [];
-      d.changes.push({
-        action: "delete",
-        title: task.title,
-        timestamp,
-        username: currentUser,
-      });
+      if (!d.content && trimmed) {
+        d.content = trimmed;
+        d.changes.push({
+          action: "add",
+          title: trimmed,
+          timestamp,
+          username: currentUser,
+        });
+      } else if (d.content && !trimmed) {
+        d.changes.push({
+          action: "delete",
+          title: d.content,
+          timestamp,
+          username: currentUser,
+        });
+        d.content = "";
+      } else if (d.content !== trimmed) {
+        d.changes.push({
+          action: "edit",
+          title: trimmed,
+          timestamp,
+          username: currentUser,
+        });
+        d.content = trimmed;
+      }
     });
   };
 
   return (
-    <>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-        <input
-          type="text"
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          placeholder="Enter new task title"
-          style={{ flex: 1 }}
+  <>
+    <div>
+      <p>
+        Logged in as: <strong>{currentUser}</strong>
+      </p>
+
+      {/* Textarea */}
+      <div style={{ marginBottom: "0.5rem" }}>
+        <textarea
+          value={inputText}
+          rows={10}
+          onChange={(e) => setInputText(e.target.value)}
+          style={{ width: "100%" }}
         />
-        <button type="button" onClick={handleAddTask}>
-          <b>+</b> Add New Task
+      </div>
+
+      {/* Save button aligned to the right below textarea */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button type="button" onClick={handleSave}>
+          Save
         </button>
       </div>
+    </div>
 
-      <div id="task-list" style={{ marginTop: "1.5rem" }}>
-        {doc?.tasks?.map(({ title, done }, index) => (
-          <div className="task" key={index} style={{ marginBottom: "1rem" }}>
-            <input
-              type="checkbox"
-              checked={done}
-              onChange={() =>
-                changeDoc((d) => {
-                  d.tasks[index].done = !d.tasks[index].done;
-                })
-              }
-            />
+    {doc?.changes && doc.changes.length > 0 && (
+      <section style={{ marginTop: "2rem" }}>
+        <h4>Change History</h4>
+        <ul>
+          {doc.changes.map((log, i) => (
+            <li key={i}>
+              [{formatDate(log.timestamp)}] <b>{log.username}</b> <i>{log.action}</i>{" "}
+              text: "<code>{log.title}</code>"
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </>
+);
 
-            <input
-              type="text"
-              value={title || ""}
-              placeholder="Task title"
-              onChange={(e) =>
-                changeDoc((d) => {
-                  d.tasks[index].title = e.target.value;
-                })
-              }
-              style={{
-                textDecoration: done ? "line-through" : undefined,
-                marginRight: "0.5rem",
-                width: "50%",
-              }}
-            />
-
-            <button onClick={() => handleSaveEdit(index)}>Save Edit</button>
-            <button
-              onClick={() => handleDeleteTask(index)}
-              style={{ marginLeft: "0.5rem" }}
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {doc?.changes && doc.changes.length > 0 && (
-        <section style={{ marginTop: "2rem" }}>
-          <h4>Change History</h4>
-          <ul>
-            {doc.changes.map((log, i) => (
-              <li key={i}>
-                [{formatDate(log.timestamp)}] <b>{log.username}</b> <i>{log.action}</i>{" "}
-                task: "<code>{log.title}</code>"
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
-  );
 };

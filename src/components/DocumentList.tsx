@@ -1,9 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useDocument, AutomergeUrl, useRepo } from "@automerge/react";
-import { initTaskList, TaskList } from "./TaskList";
-
 import { RootDocument } from "../rootDoc";
-import { useEffect } from "react";
+import { TextData, initTextData } from "./TaskList"; // import from correct path
 
 export const DocumentList: React.FC<{
   docUrl: AutomergeUrl;
@@ -15,44 +13,47 @@ export const DocumentList: React.FC<{
     suspense: true,
   });
 
+  // Auto-add selected document if it's new
   useEffect(() => {
-    changeDoc((d) => {
-      if (selectedDocument && !d.taskLists.includes(selectedDocument)) {
-        // If the selected document is not in the list, add it
-        d.taskLists.push(selectedDocument);
-      }
-    });
+    if (selectedDocument) {
+      changeDoc((d) => {
+        if (!d.taskLists.includes(selectedDocument)) {
+          d.taskLists.push(selectedDocument);
+        }
+      });
+    }
   }, [selectedDocument, changeDoc]);
 
+  // Create new document and select it
   const handleNewDocument = () => {
-    const newTaskList = repo.create<TaskList>(initTaskList());
-    changeDoc((d) => d.taskLists.push(newTaskList.url));
-    onSelectDocument(newTaskList.url);
+    const newDocHandle = repo.create<TextData>(initTextData());
+    const newUrl = newDocHandle.url;
+
+    changeDoc((d) => {
+      if (!d.taskLists.includes(newUrl)) {
+        d.taskLists.push(newUrl);
+      }
+    });
+
+    onSelectDocument(newUrl);
   };
 
   return (
     <div className="document-list">
       <div className="documents">
-        {doc.taskLists.map((docUrl) => (
+        {doc.taskLists.map((url, index) => (
           <div
-            key={docUrl}
-            className={`document-item ${docUrl === selectedDocument ? "active" : ""}`}
-            onClick={() => onSelectDocument(docUrl)}
+            key={url}
+            className={`document-item ${url === selectedDocument ? "active" : ""}`}
+            onClick={() => onSelectDocument(url)}
           >
-            <DocumentTitle docUrl={docUrl} />
+            Document {index + 1}
           </div>
         ))}
       </div>
-      <button onClick={handleNewDocument}>+ Task List</button>
+      <button onClick={handleNewDocument} style={{ marginTop: "1rem" }}>
+        + Add Document
+      </button>
     </div>
   );
-};
-
-// Component to display document title
-const DocumentTitle: React.FC<{ docUrl: AutomergeUrl }> = ({ docUrl }) => {
-  const [doc] = useDocument<TaskList>(docUrl, { suspense: true });
-
-  // Get the first task's title or use a default
-  const title = doc.title || "Untitled Task List";
-  return <div>{title}</div>;
 };

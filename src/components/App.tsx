@@ -19,7 +19,7 @@ function App({ docUrl }: { docUrl: AutomergeUrl }) {
       <header>
         <h1>
           <img src={automergeLogo} alt="Automerge logo" id="automerge-logo" />
-          Automerge Task List
+          Automerge Collaborative Text Editor
         </h1>
       </header>
 
